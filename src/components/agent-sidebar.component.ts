@@ -8,7 +8,7 @@ interface ChatMessage {
   id: string
   role: 'user' | 'ai' | 'status'
   text: string
-  type?: 'thinking' | 'executing' | 'output' | 'answer' | 'error'
+  type?: 'thinking' | 'executing' | 'output' | 'answer' | 'error' | 'confirm_danger'
 }
 
 @Component({
@@ -83,6 +83,16 @@ interface ChatMessage {
         <div class="msg-text error-text">{{ msg.text }}</div>
       </ng-container>
 
+      <!-- Danger Confirm -->
+      <ng-container *ngIf="msg.type === 'confirm_danger'">
+        <div class="msg-label" style="color:#ff6b6b;">⚠️ 风险拦截</div>
+        <div class="msg-text error-text" style="margin-bottom: 12px">{{ msg.text }}</div>
+        <div style="display: flex; gap: 8px;">
+          <button class="action-btn" style="background: rgba(255,60,60,.2); border-color: rgba(255,60,60,.4); color: white;" (click)="quickSend('确认执行')">确认执行</button>
+          <button class="action-btn" (click)="quickSend('取消执行')">取消操作</button>
+        </div>
+      </ng-container>
+
     </div>
 
     <!-- Busy indicator -->
@@ -93,19 +103,35 @@ interface ChatMessage {
   </div>
 
   <div class="sidebar-input">
-    <textarea
-      [(ngModel)]="inputText"
-      class="input-box"
-      placeholder="描述你的需求，如「查看接口状态」…"
-      [disabled]="isBusy"
-      (keydown.enter)="onEnter($event)"
-      rows="1"
-    ></textarea>
-    <button class="send-btn" (click)="send()" [disabled]="isBusy || !inputText.trim()">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-        <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
-      </svg>
-    </button>
+    <div class="input-actions-bar">
+      <button class="action-btn" (click)="backupConfig()" [disabled]="isBusy" title="一键备份当前所有配置到桌面">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg> 备份
+      </button>
+      <button class="action-btn" (click)="fileInput.click()" [disabled]="isBusy" title="选择本地配置文件，让 AI 分析并应用">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg> 恢复
+      </button>
+      <input type="file" #fileInput (change)="onFileSelected($event)" accept=".txt,.cfg,.conf" style="display:none">
+    </div>
+    <div class="input-main-row">
+      <textarea
+        [(ngModel)]="inputText"
+        class="input-box"
+        placeholder="描述需求，如「查看状态」…"
+        [disabled]="isBusy"
+        (keydown.enter)="onEnter($event)"
+        rows="1"
+      ></textarea>
+      <button *ngIf="!isBusy" class="send-btn" (click)="send()" [disabled]="!inputText.trim()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
+        </svg>
+      </button>
+      <button *ngIf="isBusy" class="stop-btn" (click)="stop()" title="停止执行">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <rect width="10" height="10" x="3" y="3" rx="2" />
+        </svg>
+      </button>
+    </div>
   </div>
 </div>
   `,
@@ -163,6 +189,7 @@ interface ChatMessage {
     .msg-output { background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.08); }
     .msg-answer { background: rgba(56,200,100,.08); border: 1px solid rgba(56,200,100,.2); }
     .msg-error { background: rgba(255,60,60,.1); border: 1px solid rgba(255,60,60,.25); }
+    .msg-confirm-danger { background: rgba(255,107,107,.1); border: 1px solid rgba(255,107,107,.3); }
 
     .msg-label { font-size: 10px; font-weight: 600; opacity: .6; margin-bottom: 3px; text-transform: uppercase; letter-spacing: .04em; }
     .msg-text { line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
@@ -194,8 +221,23 @@ interface ChatMessage {
 
     .sidebar-input {
       border-top: 1px solid rgba(255,255,255,.08);
-      padding: 8px 10px 10px; display: flex; gap: 8px; align-items: flex-end;
+      padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 8px;
       flex-shrink: 0;
+    }
+    .input-actions-bar {
+      display: flex; gap: 6px;
+    }
+    .action-btn {
+      display: flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,.1);
+      background: rgba(255,255,255,.05); border-radius: 6px; padding: 4px 8px; font-size: 11px;
+      color: rgba(255,255,255,.7); cursor: pointer; transition: all .15s;
+    }
+    .action-btn:hover:not(:disabled) {
+      background: rgba(255,255,255,.12); color: #fff;
+    }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .input-main-row {
+      display: flex; gap: 8px; align-items: flex-end;
     }
     .input-box {
       flex: 1; min-height: 38px; max-height: 100px; resize: vertical;
@@ -212,6 +254,15 @@ interface ChatMessage {
     }
     .send-btn:disabled { opacity: .35; cursor: not-allowed; }
     .send-btn:hover:not(:disabled) { background: rgba(56,130,255,.95); }
+    
+    .stop-btn {
+      flex-shrink: 0; width: 36px; height: 36px;
+      border-radius: 8px; border: none;
+      background: rgba(255,107,107,.7); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background .15s;
+    }
+    .stop-btn:hover { background: rgba(255,107,107,.95); }
 
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(4px); }
@@ -266,6 +317,50 @@ export class AgentSidebarComponent implements OnInit, OnDestroy {
     this.send()
   }
 
+  stop(): void {
+    if (!this.isBusy) return
+    const tab = this.agent.getTargetTab()
+    if (tab) {
+      this.agent.abortCurrentRun(tab)
+    }
+  }
+
+  async backupConfig(): Promise<void> {
+    if (this.isBusy) return
+    this.isBusy = true
+    this.addMsg('user', '备份当前配置到桌面')
+    this.refreshTarget()
+
+    try {
+      const configText = await this.agent.captureFullConfig((msg) => {
+        this.addMsg('status', msg, 'executing')
+        this.scrollToBottom()
+      })
+      const finalName = `BackupConfig-${Date.now()}.txt`
+      const savedPath = this.agent.saveTextToDesktop(finalName, configText)
+      this.addMsg('ai', `✅ 备份成功！\n文件已保存至：\n${savedPath}`, 'answer')
+    } catch (err: any) {
+      this.addMsg('status', `备份失败: ${err.message}`, 'error')
+    } finally {
+      this.isBusy = false
+      this.scrollToBottom()
+    }
+  }
+
+  onFileSelected(event: any): void {
+    const file = event.target.files?.[0]
+    if (!file) return
+    
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target?.result as string
+      // Pre-fill input box so user can adjust before sending
+      this.inputText = '这是我需要应用/恢复的配置，请帮我分析并在当前设备中执行它们：\n\n' + text.substring(0, 4000)
+    }
+    reader.readAsText(file)
+    event.target.value = '' // Allow choosing same file again
+  }
+
   onEnter(e: Event): void {
     if ((e as KeyboardEvent).shiftKey) return
     e.preventDefault()
@@ -299,6 +394,9 @@ export class AgentSidebarComponent implements OnInit, OnDestroy {
           case 'error':
             this.addMsg('status', step.text, 'error')
             break
+          case 'confirm_danger':
+            this.addMsg('status', step.text, 'confirm_danger')
+            break
         }
         this.scrollToBottom()
       })
@@ -319,6 +417,7 @@ export class AgentSidebarComponent implements OnInit, OnDestroy {
     if (msg.type === 'output') return 'msg-output'
     if (msg.type === 'answer') return 'msg-answer'
     if (msg.type === 'error') return 'msg-error'
+    if (msg.type === 'confirm_danger') return 'msg-confirm-danger'
     return ''
   }
 

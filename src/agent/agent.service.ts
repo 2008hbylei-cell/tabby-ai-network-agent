@@ -7,7 +7,7 @@ import { AiNetworkAgentConfig, AI_NETWORK_AGENT_CONFIG_KEY, DEFAULT_CONFIG } fro
 
 /** A single step the agent took */
 export interface AgentStep {
-  type: 'thinking' | 'executing' | 'output' | 'answer' | 'error'
+  type: 'thinking' | 'executing' | 'output' | 'answer' | 'error' | 'confirm_danger'
   text: string
 }
 
@@ -19,6 +19,8 @@ export class AgentService {
   private tabOutputSubs = new WeakMap<any, Subscription>()
   private outputBuffers = new WeakMap<any, string>()
   private conversationMemory = new WeakMap<any, Array<{ role: string; content: string }>>()
+  private pendingDangerousCommands = new WeakMap<any, { aiText: string; commands: string[]; thinking?: string; messages: any[] }>()
+  private abortControllers = new WeakMap<any, AbortController>()
   private activeTerminalTab: any = null
 
   constructor(
@@ -50,6 +52,15 @@ export class AgentService {
   clearMemory(tab: any): void {
     if (tab) {
       this.conversationMemory.delete(tab)
+      this.pendingDangerousCommands.delete(tab)
+      this.abortControllers.get(tab)?.abort()
+      this.abortControllers.delete(tab)
+    }
+  }
+
+  abortCurrentRun(tab: any): void {
+    if (tab) {
+      this.abortControllers.get(tab)?.abort()
     }
   }
 
@@ -78,7 +89,6 @@ export class AgentService {
     const recentOutput = this.getRecentOutput(tab, cfg.contextLines)
     const memory = this.conversationMemory.get(tab) || []
 
-    // Build conversation history for the AI
     const messages: Array<{ role: string; content: string }> = [
       { role: 'system', content: cfg.systemPrompt },
       ...memory,
@@ -89,50 +99,109 @@ export class AgentService {
       },
     ]
 
+    let presetAction: any = null
+    const pendingDanger = this.pendingDangerousCommands.get(tab)
+    if (pendingDanger) {
+      if (['确认执行', '确认', 'y', 'yes'].includes(userMessage.trim().toLowerCase())) {
+        presetAction = pendingDanger
+        // Restore conversation context to before the prompt
+        messages.length = 0
+        messages.push(...pendingDanger.messages)
+        onStep({ type: 'answer', text: '已收到确认，开始执行高风险命令。' })
+      }
+      this.pendingDangerousCommands.delete(tab)
+    }
+
+    this.abortControllers.get(tab)?.abort()
+    const abortCtrl = new AbortController()
+    this.abortControllers.set(tab, abortCtrl)
+    const signal = abortCtrl.signal
+
     const maxRounds = 30
     for (let round = 0; round < maxRounds; round++) {
-      let aiText: string
-      try {
-        aiText = await this.callAI(messages, cfg)
-      } catch (err) {
-        onStep({ type: 'error', text: `AI 请求失败: ${err instanceof Error ? err.message : String(err)}` })
+      if (signal.aborted) {
+        onStep({ type: 'answer', text: '🛑 任务已被用户手动终止。' })
         this.saveMessagesToMemory(tab, memory, messages)
         return
       }
 
-      // Parse AI response
-      const parsed = this.parseAgentResponse(aiText)
-      if (!parsed) {
-        // AI didn't return valid JSON — treat as direct answer
-        onStep({ type: 'answer', text: aiText })
-        messages.push({ role: 'assistant', content: aiText })
-        this.saveMessagesToMemory(tab, memory, messages)
-        return
+      let aiText: string
+      let parsed: any
+      let isConfirmedAction = false
+
+      if (presetAction) {
+        aiText = presetAction.aiText
+        parsed = { action: 'execute', commands: presetAction.commands, thinking: presetAction.thinking }
+        isConfirmedAction = true
+        presetAction = null
+      } else {
+        try {
+          aiText = await this.callAI(messages, cfg, signal)
+        } catch (err: any) {
+          if (err.name === 'AbortError') {
+            onStep({ type: 'answer', text: '🛑 任务已终止。' })
+            return
+          }
+          onStep({ type: 'error', text: `AI 请求失败: ${err instanceof Error ? err.message : String(err)}` })
+          this.saveMessagesToMemory(tab, memory, messages)
+          return
+        }
+
+        parsed = this.parseAgentResponse(aiText)
+        if (!parsed) {
+          onStep({ type: 'answer', text: aiText })
+          messages.push({ role: 'assistant', content: aiText })
+          this.saveMessagesToMemory(tab, memory, messages)
+          return
+        }
       }
 
       const finalAnswer = parsed.content || parsed.thinking || aiText
 
       if (parsed.action === 'execute' && parsed.commands?.length) {
-        // Show thinking
         if (parsed.thinking) {
           onStep({ type: 'thinking', text: parsed.thinking })
         }
 
-        // Execute each command and capture output
-        const commands = this.sanitizeCommands(parsed.commands, cfg.allowNonReadonly)
-        if (commands.length === 0) {
-          onStep({ type: 'error', text: '命令被安全策略拦截（包含危险操作）。' })
-          messages.push({ role: 'assistant', content: aiText })
-          this.saveMessagesToMemory(tab, memory, messages)
-          return
+        let commandsToExec = parsed.commands
+        if (!isConfirmedAction) {
+          const { safe, blocked } = this.sanitizeCommands(parsed.commands, cfg.allowNonReadonly)
+          if (blocked.length > 0) {
+            onStep({
+              type: 'confirm_danger',
+              text: `⚠️ 拦截到高危命令：\n${blocked.join('\n')}\n\n执行此类命令可能会导致设备重启、业务中断或清空配置。请慎重选择是否继续执行。`
+            })
+            this.pendingDangerousCommands.set(tab, {
+              aiText,
+              commands: parsed.commands,
+              thinking: parsed.thinking,
+              messages: [...messages]
+            })
+            return
+          }
+          commandsToExec = safe
+          if (commandsToExec.length === 0) return
         }
 
-        onStep({ type: 'executing', text: commands.join(' ; ') })
+        onStep({ type: 'executing', text: commandsToExec.join(' ; ') })
 
         let combinedOutput = ''
-        for (const cmd of commands) {
-          const output = await this.sendCommandAndCapture(tab, cmd, cfg.commandDelayMs)
-          combinedOutput += `\n$ ${cmd}\n${output}`
+        for (const cmd of commandsToExec) {
+          if (signal.aborted) {
+            onStep({ type: 'answer', text: '🛑 任务已被用户手动终止。' })
+            this.saveMessagesToMemory(tab, memory, messages)
+            return
+          }
+          try {
+            const output = await this.sendCommandAndCapture(tab, cmd, cfg.commandDelayMs, signal)
+            combinedOutput += `\n$ ${cmd}\n${output}`
+          } catch (err: any) {
+            if (err.name === 'AbortError') {
+              onStep({ type: 'answer', text: '🛑 任务已终止。' })
+              return
+            }
+            throw err
+          }
         }
 
         onStep({ type: 'output', text: combinedOutput.trim() })
@@ -172,11 +241,19 @@ export class AgentService {
 
   // ─── Terminal interaction ───
 
-  private async sendCommandAndCapture(tab: any, command: string, delayMs: number): Promise<string> {
-    return new Promise<string>((resolve) => {
+  private async sendCommandAndCapture(tab: any, command: string, delayMs: number, signal: AbortSignal): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      if (signal.aborted) return reject(new DOMException('Aborted', 'AbortError'))
+
       let buffer = ''
       let silenceTimer: any
       let absoluteTimer: any
+
+      const onAbort = () => {
+        cleanup()
+        reject(new DOMException('Aborted', 'AbortError'))
+      }
+      signal.addEventListener('abort', onAbort)
 
       const sub = tab.output$.subscribe((data: string) => {
         buffer += data
@@ -200,9 +277,70 @@ export class AgentService {
       function cleanup() {
         clearTimeout(silenceTimer)
         clearTimeout(absoluteTimer)
+        signal.removeEventListener('abort', onAbort)
         sub.unsubscribe()
       }
     })
+  }
+
+  async captureFullConfig(onProgress: (msg: string) => void): Promise<string> {
+    const tab = this.activeTerminalTab
+    if (!tab) throw new Error('未选择终端')
+
+    // Wake terminal
+    tab.sendInput('\r')
+    await new Promise(r => setTimeout(r, 200))
+
+    // Disable pagination (Huawei/Cisco/H3C)
+    onProgress('正在关闭终端分页（防止 config 需要按空格）...')
+    tab.sendInput('screen-length 0 temporary\r')
+    tab.sendInput('screen-length disable\r')
+    tab.sendInput('terminal length 0\r')
+    await new Promise(r => setTimeout(r, 600))
+
+    // Send config commands
+    onProgress('正在拉取完整配置，此过程可能长达十几秒，请勿操作键盘...')
+    tab.sendInput('display current-configuration\r')
+    tab.sendInput('show running-config\r')
+
+    return new Promise<string>((resolve) => {
+      let buffer = ''
+      let silenceTimer: any
+      let absoluteTimer: any
+      
+      const sub = tab.output$.subscribe((data: string) => {
+        buffer += data
+        clearTimeout(silenceTimer)
+        // 3 seconds of terminal silence means it finished outputting the huge config
+        silenceTimer = setTimeout(() => {
+          cleanup()
+          resolve(this.cleanOutput(buffer))
+        }, 3000)
+      })
+
+      // 60 seconds absolute max
+      absoluteTimer = setTimeout(() => {
+        cleanup()
+        resolve(this.cleanOutput(buffer))
+      }, 60000)
+
+      function cleanup() {
+        clearTimeout(silenceTimer)
+        clearTimeout(absoluteTimer)
+        sub.unsubscribe()
+      }
+    })
+  }
+
+  saveTextToDesktop(filename: string, text: string): string {
+    const os = (window as any).require('os')
+    const path = (window as any).require('path')
+    const fs = (window as any).require('fs')
+
+    const desktop = path.join(os.homedir(), 'Desktop')
+    const filepath = path.join(desktop, filename)
+    fs.writeFileSync(filepath, text, 'utf8')
+    return filepath
   }
 
   /** Strip ANSI escape codes from terminal output */
@@ -227,6 +365,7 @@ export class AgentService {
   private async callAI(
     messages: Array<{ role: string; content: string }>,
     cfg: AiNetworkAgentConfig,
+    signal: AbortSignal
   ): Promise<string> {
     const url = this.joinUrl(cfg.apiBaseUrl, cfg.apiPath)
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -242,6 +381,7 @@ export class AgentService {
     const resp = await fetch(url, {
       method: 'POST',
       headers,
+      signal,
       body: JSON.stringify({
         model: cfg.model,
         temperature: cfg.temperature,
@@ -288,11 +428,20 @@ export class AgentService {
 
   // ─── Safety ───
 
-  private sanitizeCommands(commands: string[], allowNonReadonly: boolean): string[] {
+  private sanitizeCommands(commands: string[], allowNonReadonly: boolean): { safe: string[], blocked: string[] } {
     const clean = commands.map(c => c.trim()).filter(c => c.length > 0 && !c.includes('\n'))
-    if (allowNonReadonly) return clean
-    const blocked = ['reload', 'reboot', 'shutdown', 'erase', 'format', 'write erase', 'delete', 'reset']
-    return clean.filter(cmd => !blocked.some(kw => cmd.toLowerCase().includes(kw)))
+    if (allowNonReadonly) return { safe: clean, blocked: [] }
+    const blockedKeywords = ['reload', 'reboot', 'shutdown', 'erase', 'format', 'write erase', 'delete', 'reset']
+    const safe: string[] = []
+    const blocked: string[] = []
+    for (const cmd of clean) {
+      if (blockedKeywords.some(kw => cmd.toLowerCase().includes(kw))) {
+        blocked.push(cmd)
+      } else {
+        safe.push(cmd)
+      }
+    }
+    return { safe, blocked }
   }
 
   // ─── Terminal tab detection ───
