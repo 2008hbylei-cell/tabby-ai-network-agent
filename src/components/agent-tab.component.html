@@ -1,0 +1,88 @@
+<div class="agent-root">
+  <div class="agent-header">
+    <div class="agent-title">
+      <div class="agent-title-text">AI Network Agent</div>
+      <div class="agent-subtitle">Device-aware command helper for network troubleshooting</div>
+    </div>
+    <div class="agent-status">
+      <div class="status-chip">Target: {{ targetTabName }}</div>
+      <div class="status-chip">Device: {{ deviceType | uppercase }}</div>
+      <div class="status-chip">Mode: {{ config.executionMode | uppercase }}</div>
+    </div>
+  </div>
+
+  <div class="agent-body">
+    <div class="message-list">
+      <div
+        class="message"
+        *ngFor="let msg of messages; trackBy: trackMessage"
+        [class.message-user]="msg.role === 'user'"
+        [class.message-assistant]="msg.role === 'assistant'"
+        [class.message-system]="msg.role === 'system'"
+      >
+        <div class="message-role">{{ msg.role }}</div>
+        <div class="message-text">{{ msg.text }}</div>
+
+        <div class="message-warning" *ngIf="msg.warning">
+          {{ msg.warning }}
+        </div>
+
+        <div class="plan-card" *ngIf="msg.plan">
+          <div class="plan-row">
+            <div class="plan-label">Intent</div>
+            <div class="plan-value">{{ msg.plan.intent }}</div>
+          </div>
+          <div class="plan-row">
+            <div class="plan-label">Device</div>
+            <div class="plan-value">{{ msg.plan.deviceType }}</div>
+          </div>
+          <div class="plan-commands" *ngIf="msg.plan.commands.length">
+            <div class="plan-label">Commands</div>
+            <div class="command-list">
+              <div class="command-item" *ngFor="let cmd of msg.plan.commands">
+                {{ cmd }}
+              </div>
+            </div>
+          </div>
+          <div class="plan-commands" *ngIf="!msg.plan.commands.length">
+            <div class="plan-label">Commands</div>
+            <div class="command-item empty">No commands mapped yet.</div>
+          </div>
+          <div class="plan-actions">
+            <button class="btn" (click)="executePlan(msg.plan)" [disabled]="isBusy || msg.plan.needsDetection">
+              Run Commands
+            </button>
+            <button class="btn secondary" (click)="detectDevice(msg.plan)" [disabled]="isBusy">
+              Detect Device
+            </button>
+            <button class="btn ghost" (click)="copyCommands(msg.plan)" [disabled]="!msg.plan.commands.length">
+              Copy
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="messages.length === 0">
+        <div class="empty-title">Start a session</div>
+        <div class="empty-text">
+          Example: "show running config" or "check interface status"
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="agent-input">
+    <textarea
+      [(ngModel)]="inputText"
+      class="input-box"
+      placeholder="Describe what you want to do..."
+      [disabled]="isBusy"
+    ></textarea>
+    <div class="input-actions">
+      <button class="btn primary" (click)="send()" [disabled]="isBusy || !inputText.trim()">
+        Send
+      </button>
+    </div>
+  </div>
+</div>
+

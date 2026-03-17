@@ -1,0 +1,92 @@
+<div class="settings-root">
+  <div class="settings-header">
+    <div class="settings-title">AI 网络助手</div>
+    <div class="settings-subtitle">
+      配置 AI 对话接口（兼容 OpenAI 格式）和代理行为参数。
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="section-title">API 连接</div>
+    <div class="field-grid">
+      <label class="field">
+        <span>API 地址</span>
+        <input type="text" [(ngModel)]="config.apiBaseUrl" placeholder="https://api.openai.com" />
+      </label>
+      <label class="field">
+        <span>API 路径</span>
+        <input type="text" [(ngModel)]="config.apiPath" placeholder="/v1/chat/completions" />
+      </label>
+      <label class="field">
+        <span>API 密钥</span>
+        <input type="password" [(ngModel)]="config.apiKey" placeholder="输入你的 API Key" />
+      </label>
+      <label class="field">
+        <span>认证请求头</span>
+        <input type="text" [(ngModel)]="config.apiAuthHeader" placeholder="Authorization" />
+      </label>
+      <label class="field">
+        <span>认证前缀</span>
+        <input type="text" [(ngModel)]="config.apiAuthPrefix" placeholder="Bearer" />
+      </label>
+      <label class="field">
+        <span>模型名称</span>
+        <input type="text" [(ngModel)]="config.model" placeholder="如 gpt-4o、deepseek-chat" />
+      </label>
+      <label class="field">
+        <span>温度 (Temperature)</span>
+        <input type="number" step="0.1" [(ngModel)]="config.temperature" />
+      </label>
+      <label class="field">
+        <span>最大 Token 数</span>
+        <input type="number" step="1" [(ngModel)]="config.maxTokens" />
+      </label>
+      <label class="field">
+        <span>额外请求头 (JSON)</span>
+        <textarea rows="2" [(ngModel)]="config.additionalHeadersJson" placeholder='{ "x-api-key": "..." }'></textarea>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="section-title">命令执行</div>
+    <div class="field-grid">
+      <label class="field">
+        <span>执行模式</span>
+        <select [(ngModel)]="config.executionMode">
+          <option value="confirm">确认后执行</option>
+          <option value="auto">自动执行</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>允许写入类命令</span>
+        <input type="checkbox" [(ngModel)]="config.allowNonReadonly" />
+      </label>
+      <label class="field">
+        <span>命令间隔 (毫秒)</span>
+        <input type="number" step="50" [(ngModel)]="config.commandDelayMs" />
+      </label>
+      <label class="field">
+        <span>终端上下文行数</span>
+        <input type="number" step="10" [(ngModel)]="config.contextLines" />
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <div class="section-title">AI 提示词</div>
+    <label class="field">
+      <span>系统提示词</span>
+      <textarea rows="4" [(ngModel)]="config.systemPrompt"></textarea>
+    </label>
+    <label class="field">
+      <span>自定义设备命令映射 (JSON)</span>
+      <textarea rows="4" [(ngModel)]="config.customDeviceMapJson" placeholder='{ "cisco_ios": { "detect": ["show version"] } }'></textarea>
+    </label>
+  </div>
+
+  <div class="settings-actions">
+    <button class="btn primary" (click)="save()" [disabled]="isSaving">保存</button>
+    <button class="btn ghost" (click)="resetDefaults()" [disabled]="isSaving">恢复默认</button>
+  </div>
+</div>

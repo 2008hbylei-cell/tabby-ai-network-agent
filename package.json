@@ -1,0 +1,49 @@
+{
+  "name": "tabby-ai-network-agent",
+  "version": "0.2.0",
+  "description": "AI network device agent plugin for Tabby terminal",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "keywords": [
+    "tabby-plugin",
+    "tabby",
+    "terminal",
+    "ai",
+    "network",
+    "agent"
+  ],
+  "author": "Your Team",
+  "license": "MIT",
+  "scripts": {
+    "build": "webpack --progress --color",
+    "watch": "webpack --progress --color --watch",
+    "clean": "rimraf dist build",
+    "pack:zip": "powershell Compress-Archive -Path dist,package.json,README.md,LICENSE -DestinationPath tabby-ai-network-agent-v$env:npm_package_version.zip -Force"
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@angular/common": "~15.2.10",
+    "@angular/core": "~15.2.10",
+    "@angular/forms": "~15.2.10",
+    "@angular/platform-browser": "~15.2.10",
+    "@angular/platform-browser-dynamic": "~15.2.10",
+    "@types/node": "^20.11.5",
+    "css-loader": "^7.1.2",
+    "raw-loader": "^4.0.2",
+    "rimraf": "^6.0.1",
+    "rxjs": "^7.8.1",
+    "sass": "^1.89.2",
+    "sass-loader": "^16.0.5",
+    "style-loader": "^3.3.1",
+    "tabby-core": "*",
+    "tabby-settings": "*",
+    "tabby-terminal": "*",
+    "to-string-loader": "^1.2.0",
+    "ts-loader": "^9.5.2",
+    "typescript": "~5.3.3",
+    "webpack": "^5.24.4",
+    "webpack-cli": "^4.5.0"
+  }
+}
