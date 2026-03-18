@@ -102,17 +102,8 @@ interface ChatMessage {
     </div>
   </div>
 
-  <div class="sidebar-input">
-    <div class="input-actions-bar">
-      <button class="action-btn" (click)="backupConfig()" [disabled]="isBusy" title="一键备份当前所有配置到桌面">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg> 备份
-      </button>
-      <button class="action-btn" (click)="fileInput.click()" [disabled]="isBusy" title="选择本地配置文件，让 AI 分析并应用">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg> 恢复
-      </button>
-      <input type="file" #fileInput (change)="onFileSelected($event)" accept=".txt,.cfg,.conf" style="display:none">
-    </div>
-    <div class="input-main-row">
+  <div class="sidebar-input-area">
+    <div class="input-glass-container">
       <textarea
         [(ngModel)]="inputText"
         class="input-box"
@@ -121,16 +112,31 @@ interface ChatMessage {
         (keydown.enter)="onEnter($event)"
         rows="1"
       ></textarea>
-      <button *ngIf="!isBusy" class="send-btn" (click)="send()" [disabled]="!inputText.trim()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
-        </svg>
-      </button>
-      <button *ngIf="isBusy" class="stop-btn" (click)="stop()" title="停止执行">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-          <rect width="10" height="10" x="3" y="3" rx="2" />
-        </svg>
-      </button>
+      
+      <div class="input-bottom-row">
+        <div class="input-actions-bar">
+          <button class="action-btn" (click)="backupConfig()" [disabled]="isBusy" title="一键备份当前所有配置到桌面">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg> 备份
+          </button>
+          <button class="action-btn" (click)="fileInput.click()" [disabled]="isBusy" title="选择本地配置文件，让 AI 分析并应用">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg> 恢复
+          </button>
+          <input type="file" #fileInput (change)="onFileSelected($event)" accept=".txt,.cfg,.conf" style="display:none">
+        </div>
+
+        <div class="input-send-controls">
+          <button *ngIf="!isBusy" class="send-btn" (click)="send()" [disabled]="!inputText.trim()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
+            </svg>
+          </button>
+          <button *ngIf="isBusy" class="stop-btn" (click)="stop()" title="停止执行">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+              <rect width="8" height="8" x="4" y="4" rx="1.5" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -219,50 +225,97 @@ interface ChatMessage {
       animation: pulse 1s infinite;
     }
 
-    .sidebar-input {
-      border-top: 1px solid rgba(255,255,255,.08);
-      padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 8px;
+    .sidebar-input-area {
+      padding: 12px;
+      background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.15) 100%);
       flex-shrink: 0;
     }
+    
+    .input-glass-container {
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 24px -6px rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      padding: 4px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .input-glass-container:focus-within {
+      border-color: rgba(56, 130, 255, 0.4);
+      box-shadow: 0 8px 32px -8px hsla(212, 100%, 60%, 0.25);
+    }
+    
+    .input-box {
+      background: transparent;
+      border: none;
+      color: var(--bs-body-color, #e6e6e6);
+      padding: 8px 10px 4px 10px;
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 48px;
+      max-height: 120px;
+      resize: vertical;
+      font-family: inherit;
+    }
+    .input-box:focus {
+      outline: none;
+    }
+    .input-box::placeholder {
+      color: rgba(255,255,255,0.3);
+    }
+    
+    .input-bottom-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 4px;
+    }
+    
     .input-actions-bar {
-      display: flex; gap: 6px;
+      display: flex; gap: 4px; align-items: center;
     }
     .action-btn {
-      display: flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,.1);
-      background: rgba(255,255,255,.05); border-radius: 6px; padding: 4px 8px; font-size: 11px;
-      color: rgba(255,255,255,.7); cursor: pointer; transition: all .15s;
+      display: flex; align-items: center; gap: 4px;
+      background: transparent; border: none; border-radius: 8px; 
+      padding: 6px 10px; font-size: 11px;
+      color: rgba(255,255,255,.5); cursor: pointer; transition: all 0.2s ease;
     }
     .action-btn:hover:not(:disabled) {
-      background: rgba(255,255,255,.12); color: #fff;
+      background: rgba(255,255,255,.08); color: rgba(255,255,255,.9);
     }
-    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .input-main-row {
-      display: flex; gap: 8px; align-items: flex-end;
-    }
-    .input-box {
-      flex: 1; min-height: 38px; max-height: 100px; resize: vertical;
-      border-radius: 8px; border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.3); color: inherit; padding: 8px 10px;
-      font-size: 13px; font-family: inherit; line-height: 1.4;
-    }
-    .send-btn {
-      flex-shrink: 0; width: 36px; height: 36px;
-      border-radius: 8px; border: none;
-      background: rgba(56,130,255,.7); color: #fff;
+    .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    
+    .send-btn, .stop-btn {
+      flex-shrink: 0; width: 34px; height: 34px;
+      border-radius: 10px; border: none;
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: background .15s;
+      cursor: pointer; transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
     }
-    .send-btn:disabled { opacity: .35; cursor: not-allowed; }
-    .send-btn:hover:not(:disabled) { background: rgba(56,130,255,.95); }
+    
+    .send-btn {
+      background: hsla(212, 100%, 60%, 1); color: #fff;
+    }
+    .send-btn:disabled { 
+      background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.25); 
+      cursor: not-allowed; 
+      transform: none !important;
+      box-shadow: none !important;
+    }
+    .send-btn:hover:not(:disabled) { 
+      transform: translateY(-2px); 
+      box-shadow: 0 4px 12px hsla(212, 100%, 60%, 0.4); 
+    }
     
     .stop-btn {
-      flex-shrink: 0; width: 36px; height: 36px;
-      border-radius: 8px; border: none;
-      background: rgba(255,107,107,.7); color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: background .15s;
+      background: hsl(355, 78%, 60%); color: #fff;
     }
-    .stop-btn:hover { background: rgba(255,107,107,.95); }
+    .stop-btn:hover {
+      transform: translateY(-2px); 
+      box-shadow: 0 4px 12px hsla(355, 78%, 60%, 0.4);
+    }
 
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(4px); }
