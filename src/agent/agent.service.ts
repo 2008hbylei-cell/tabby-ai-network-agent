@@ -18,7 +18,7 @@ export type StepCallback = (step: AgentStep) => void
 export class AgentService {
   private tabOutputSubs = new WeakMap<any, Subscription>()
   private outputBuffers = new WeakMap<any, string>()
-  private conversationMemory = new WeakMap<any, Array<{ role: string; content: string }>>()
+  private globalConversationMemory: Array<{ role: string; content: string }> = []
   private pendingDangerousCommands = new WeakMap<any, { aiText: string; commands: string[]; thinking?: string; messages: any[] }>()
   private abortControllers = new WeakMap<any, AbortController>()
   private activeTerminalTab: any = null
@@ -30,6 +30,10 @@ export class AgentService {
   ) {
     this.app.activeTabChange$.subscribe(() => this.captureActiveTerminalTab())
     this.captureActiveTerminalTab()
+    try {
+      const stored = window.localStorage.getItem('aiNetworkAgent_Memory')
+      if (stored) this.globalConversationMemory = JSON.parse(stored)
+    } catch {}
   }
 
   getConfig(): AiNetworkAgentConfig {
@@ -50,8 +54,9 @@ export class AgentService {
   }
 
   clearMemory(tab: any): void {
+    this.globalConversationMemory = []
+    window.localStorage.removeItem('aiNetworkAgent_Memory')
     if (tab) {
-      this.conversationMemory.delete(tab)
       this.pendingDangerousCommands.delete(tab)
       this.abortControllers.get(tab)?.abort()
       this.abortControllers.delete(tab)
@@ -87,7 +92,7 @@ export class AgentService {
 
     // Get recent terminal context
     const recentOutput = this.getRecentOutput(tab, cfg.contextLines)
-    const memory = this.conversationMemory.get(tab) || []
+    const memory = this.globalConversationMemory || []
 
     const messages: Array<{ role: string; content: string }> = [
       { role: 'system', content: cfg.systemPrompt },
@@ -236,7 +241,8 @@ export class AgentService {
     if (updatedMemory.length > 20) {
       updatedMemory.splice(0, updatedMemory.length - 20)
     }
-    this.conversationMemory.set(tab, updatedMemory)
+    this.globalConversationMemory = updatedMemory
+    window.localStorage.setItem('aiNetworkAgent_Memory', JSON.stringify(updatedMemory))
   }
 
   // ─── Terminal interaction ───

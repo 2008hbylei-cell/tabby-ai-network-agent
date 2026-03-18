@@ -296,6 +296,21 @@ export class AgentSidebarComponent implements OnInit, OnDestroy {
     this.subs.push(
       this.app.activeTabChange$.subscribe(() => this.refreshTarget()),
     )
+    this.loadUIMessages()
+  }
+
+  private loadUIMessages(): void {
+    try {
+      const stored = window.localStorage.getItem('aiNetworkAgent_UIMessages')
+      if (stored) {
+        this.messages = JSON.parse(stored)
+        this.scrollToBottom()
+      }
+    } catch {}
+  }
+
+  private persistUIMessages(): void {
+    window.localStorage.setItem('aiNetworkAgent_UIMessages', JSON.stringify(this.messages))
   }
 
   ngOnDestroy(): void {
@@ -306,10 +321,9 @@ export class AgentSidebarComponent implements OnInit, OnDestroy {
 
   clearChat(): void {
     this.messages = []
+    this.persistUIMessages()
     const tab = this.agent.getTargetTab()
-    if (tab) {
-      this.agent.clearMemory(tab)
-    }
+    this.agent.clearMemory(tab)  // tab can be null, clearMemory behaves globally now
   }
 
   quickSend(text: string): void {
@@ -433,6 +447,7 @@ export class AgentSidebarComponent implements OnInit, OnDestroy {
       text,
       type: type as any,
     })
+    this.persistUIMessages()
   }
 
   private scrollToBottom(): void {
